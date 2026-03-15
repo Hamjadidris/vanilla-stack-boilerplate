@@ -1,126 +1,138 @@
-const path = require("path");
-const webpack = require("webpack");
+import webpack from "webpack";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
-const { CleanWebpackPlugin } = require("clean-webpack-plugin");
-const CopyWebpackPlugin = require("copy-webpack-plugin");
-const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-const ImageMinimizerPlugin = require("image-minimizer-webpack-plugin");
-const TerserPlugin = require("terser-webpack-plugin");
+import TerserPlugin from "terser-webpack-plugin";
+import CopyWebpackPlugin from "copy-webpack-plugin";
+import { CleanWebpackPlugin } from "clean-webpack-plugin";
+import MiniCssExtractPlugin from "mini-css-extract-plugin";
+import ImageMinimizerPlugin from "image-minimizer-webpack-plugin";
 
 const IS_DEVELOPMENT = process.env.NODE_ENV === "development";
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const dirApp = path.join(__dirname, "app");
-const dirShared = path.join(__dirname, "shared");
-const dirStyles = path.join(__dirname, "styles");
+const dirApp = join(__dirname, "app");
+const dirAssets = join(__dirname, "assets");
+const dirShared = join(__dirname, "shared");
+const dirStyles = join(__dirname, "styles");
 const dirNode = "node_modules";
 
-module.exports = {
-  entry: [path.join(dirApp, "index.js"), path.join(dirStyles, "index.scss")],
+const entry = [join(dirApp, "index.js"), join(dirStyles, "index.css")];
 
-  resolve: {
-    modules: [dirApp, dirShared, dirStyles, dirNode],
-  },
+const resolve = {
+  modules: [dirApp, dirAssets, dirShared, dirStyles, dirNode],
+};
 
-  plugins: [
-    new webpack.DefinePlugin({
-      IS_DEVELOPMENT,
-    }),
+const plugins = [
+  new webpack.DefinePlugin({
+    IS_DEVELOPMENT,
+  }),
 
-    new CopyWebpackPlugin({
-      patterns: [
-        {
-          from: "./shared",
-          to: "",
-        },
-      ],
-    }),
-
-    new MiniCssExtractPlugin({
-      filename: "[name].css",
-      chunkFilename: "[id].css",
-    }),
-
-    new ImageMinimizerPlugin({
-      minimizer: {
-        implementation: ImageMinimizerPlugin.imageminMinify,
-        options: {
-          plugins: [
-            ["gifsicle", { interlaced: true }],
-            ["jpegtran", { progressive: true }],
-            ["optipng", { optimizationLevel: 8 }],
-          ],
-        },
-      },
-    }),
-
-    new CleanWebpackPlugin(),
-  ],
-
-  module: {
-    rules: [
+  new CopyWebpackPlugin({
+    patterns: [
       {
-        test: /\.js$/,
-        use: {
-          loader: "babel-loader",
-        },
-      },
-
-      {
-        test: /\.scss$/,
-        use: [
-          {
-            loader: MiniCssExtractPlugin.loader,
-            options: {
-              publicPath: "",
-            },
-          },
-          {
-            loader: "css-loader",
-          },
-          {
-            loader: "postcss-loader",
-          },
-          {
-            loader: "sass-loader",
-          },
-        ],
-      },
-
-      {
-        test: /\.(jpe?g|png|gif|svg|woff2?|fnt|webp)$/,
-        loader: "file-loader",
-        options: {
-          name(file) {
-            return "[hash].[ext]";
-          },
-        },
-      },
-
-      {
-        test: /\.(jpe?g|png|gif|svg|webp)$/i,
-        use: [
-          {
-            loader: ImageMinimizerPlugin.loader,
-          },
-        ],
-      },
-
-      {
-        test: /\.(glsl|frag|vert)$/,
-        loader: "raw-loader",
-        exclude: /node_modules/,
-      },
-
-      {
-        test: /\.(glsl|frag|vert)$/,
-        loader: "glslify-loader",
-        exclude: /node_modules/,
+        from: "./shared",
+        to: "",
       },
     ],
-  },
+  }),
 
-  optimization: {
-    minimize: true,
-    minimizer: [new TerserPlugin()],
-  },
+  new MiniCssExtractPlugin({
+    filename: "[name].css",
+    chunkFilename: "[id].css",
+  }),
+
+  new ImageMinimizerPlugin({
+    minimizer: {
+      implementation: ImageMinimizerPlugin.imageminMinify,
+      options: {
+        plugins: [
+          ["gifsicle", { interlaced: true }],
+          ["jpegtran", { progressive: true }],
+          ["optipng", { optimizationLevel: 8 }],
+        ],
+      },
+    },
+  }),
+
+  new CleanWebpackPlugin(),
+];
+
+const module = {
+  rules: [
+    {
+      test: /\.(js)$/,
+      exclude: /node_modules/,
+      use: {
+        loader: "babel-loader",
+      },
+      resolve: {
+        fullySpecified: false,
+      },
+    },
+
+    {
+      test: /\.css$/,
+      use: [
+        // {
+        //   loader: IS_DEVELOPMENT ? "style-loader" : MiniCssExtractPlugin.loader,
+        // },
+        {
+          loader: "style-loader",
+        },
+        {
+          loader: "css-loader",
+        },
+        {
+          loader: "postcss-loader",
+          ident: "postcss",
+          options: {
+            postcssOptions: {
+              plugins: ["@tailwindcss/postcss"],
+            },
+          },
+        },
+      ],
+    },
+
+    {
+      test: /\.(jpe?g|png|gif|svg|woff2?|fnt|webp)$/,
+      type: "asset/resource",
+    },
+    {
+      test: /\.(jpe?g|png|gif|svg|webp)$/i,
+      use: [
+        {
+          loader: ImageMinimizerPlugin.loader,
+        },
+      ],
+    },
+
+    {
+      test: /\.(glsl|frag|vert)$/,
+      loader: "raw-loader",
+      exclude: /node_modules/,
+    },
+
+    {
+      test: /\.(glsl|frag|vert)$/,
+      loader: "glslify-loader",
+      exclude: /node_modules/,
+    },
+  ],
 };
+
+const optimization = {
+  minimize: true,
+  minimizer: [new TerserPlugin()],
+};
+
+const config = {
+  entry,
+  resolve,
+  plugins,
+  module,
+  optimization,
+};
+
+export default config;
